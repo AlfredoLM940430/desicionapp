@@ -10,6 +10,7 @@ import requests
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -19,14 +20,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 1. Obtener de forma segura el directorio absoluto donde vive este main.py
+BASE_DIR = Path(__file__).resolve().parent
+
 TOKEN_INEGI = os.getenv("TOKEN_INEGI")
 if not TOKEN_INEGI:
     logger.warning("⚠️ TOKEN_INEGI no configurado")
 
+# 2. Obtener nombres de archivos de las variables de entorno
 FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
 FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
+
+# 3. Crear rutas ABSOLUTAS combinándolas con el BASE_DIR
+PATH_MAESTRO = BASE_DIR / FILE_MAESTRO
+PATH_INGRESOS = BASE_DIR / FILE_INGRESOS
+
 ENV = os.getenv("ENV", "development")
+
+# Configuración de CORS
 CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:5173").split(",")
+# En producción en Render, si tienes problemas de CORS, puedes añadir temporalmente "*" para pruebas:
+# if ENV == "production": CORS_ORIGIN = ["*"] 
 
 app = FastAPI(title="SOCAP Geomarket API")
 
@@ -38,13 +52,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 4. Cargar localidades usando la ruta absoluta controlada
 localidades_data = []
-if os.path.exists(FILE_MAESTRO):
-    with open(FILE_MAESTRO, "r", encoding="utf-8") as f:
-        localidades_data = json.load(f)
-        #! logger.info(f"Cargadas {len(localidades_data)} localidades")
+if PATH_MAESTRO.exists():
+    try:
+        with open(PATH_MAESTRO, "r", encoding="utf-8") as f:
+            localidades_data = json.load(f)
+        logger.info(f"✅ Se cargaron exitosamente {len(localidades_data)} localidades.")
+    except Exception as e:
+        logger.error(f"❌ Error al parsear {FILE_MAESTRO}: {e}")
 else:
-    logger.warning(f"No se encontró '{FILE_MAESTRO}'")
+    logger.warning(f"⚠️ No se encontró el archivo maestro en la ruta esperada: {PATH_MAESTRO}")
+
+# Puedes hacer exactamente lo mismo para tus datos de ingresos abajo si lo requieres:
+ingresos_data = []
+if PATH_INGRESOS.exists():
+    with open(PATH_INGRESOS, "r", encoding="utf-8") as f:
+        ingresos_data = json.load(f)
+
+# load_dotenv()
+
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
+# logger = logging.getLogger(__name__)
+
+# TOKEN_INEGI = os.getenv("TOKEN_INEGI")
+# if not TOKEN_INEGI:
+#     logger.warning("⚠️ TOKEN_INEGI no configurado")
+
+# FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
+# FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
+# ENV = os.getenv("ENV", "development")
+# CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:5173").split(",")
+
+# app = FastAPI(title="SOCAP Geomarket API")
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=CORS_ORIGIN,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# localidades_data = []
+# if os.path.exists(FILE_MAESTRO):
+#     with open(FILE_MAESTRO, "r", encoding="utf-8") as f:
+#         localidades_data = json.load(f)
+# else:
+#     logger.warning(f"No se encontró '{FILE_MAESTRO}'")
 
 @app.get("/health")
 def health():
