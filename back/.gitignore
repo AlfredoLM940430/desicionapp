@@ -28,6 +28,7 @@ wheels/
 venv/
 ENV/
 env/
+migrar_db.py
 
 # IDE
 .vscode/
@@ -40,6 +41,7 @@ env/
 # Datos locales (generados en desarrollo)
 # datosDemograficos.json
 # datosIngresos.json
+*.json
 *.db
 *.sqlite
 

@@ -3,10 +3,11 @@ import os
 import logging
 import math
 import re
-from http.client import BadStatusLine
 from typing import List, Optional
+from http.client import BadStatusLine
 from requests.exceptions import ConnectionError, Timeout
 import requests
+import sqlite3
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -20,28 +21,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 1. Obtener de forma segura el directorio absoluto donde vive este main.py
+# 1. Directorio base absoluto
 BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "geomarket.db"
+FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
 
 TOKEN_INEGI = os.getenv("TOKEN_INEGI")
 if not TOKEN_INEGI:
     logger.warning("⚠️ TOKEN_INEGI no configurado")
 
-# 2. Obtener nombres de archivos de las variables de entorno
-# FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
-FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
-
-# 3. Crear rutas ABSOLUTAS combinándolas con el BASE_DIR
-PATH_PART1 = BASE_DIR / "datosDemograficos_part1.json"
-PATH_PART2 = BASE_DIR / "datosDemograficos_part2.json"
-PATH_INGRESOS = BASE_DIR / FILE_INGRESOS
-
 ENV = os.getenv("ENV", "development")
 
 # Configuración de CORS
 CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:5173").split(",")
-# En producción en Render, si tienes problemas de CORS, puedes añadir temporalmente "*" para pruebas:
-# if ENV == "production": CORS_ORIGIN = ["*"] 
 
 app = FastAPI(title="SOCAP Geomarket API")
 
@@ -52,28 +44,49 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-localidades_data = []
 
-if PATH_PART1.exists() and PATH_PART2.exists():
+# Función auxiliar para abrir conexión a SQLite y retornar filas tipo diccionario
+def get_db_connection():
+    if not DB_PATH.exists():
+        raise HTTPException(status_code=500, detail="Base de datos geomarket.db no encontrada en el servidor.")
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+# Función auxiliar para cargar los ingresos (JSON de Diccionario)
+def cargar_datos_ingresos_json():
+    path_ingresos = BASE_DIR / FILE_INGRESOS
+    if not path_ingresos.exists():
+        raise HTTPException(status_code=500, detail=f"Archivo '{FILE_INGRESOS}' no encontrado en el servidor.")
     try:
-        with open(PATH_PART1, "r", encoding="utf-8") as f:
-            data1 = json.load(f)
-        with open(PATH_PART2, "r", encoding="utf-8") as f:
-            data2 = json.load(f)
-        
-        # Al ser listas, el signo '+' las une en una sola gran lista
-        localidades_data = data1 + data2
-        logger.info(f"✅ Datos demográficos unificados con éxito. Total: {len(localidades_data)} registros.")
-    except Exception as e:
-        logger.error(f"❌ Error al parsear las partes del JSON: {e}")
-else:
-    logger.warning("⚠️ No se encontraron las partes del archivo maestro en la ruta esperada.")
+        with open(path_ingresos, "r", encoding="utf-8") as file:
+            return json.load(file)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Error al decodificar el archivo JSON de ingresos.")  
 
-# Puedes hacer exactamente lo mismo para tus datos de ingresos abajo si lo requieres:
-ingresos_data = []
-if PATH_INGRESOS.exists():
-    with open(PATH_INGRESOS, "r", encoding="utf-8") as f:
-        ingresos_data = json.load(f)
+# Funciones matemáticas de cálculo geomarket
+def calcular_distancia(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    rad_lat1, rad_lon1, rad_lat2, rad_lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = rad_lat2 - rad_lat1
+    dlon = rad_lon2 - rad_lon1
+    a = math.sin(dlat / 2)**2 + math.cos(rad_lat1) * math.cos(rad_lat2) * math.sin(dlon / 2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+def obtener_peso_estrato(estrato: str) -> int:
+    if not estrato:
+        return 0
+    estrato_limpio = str(estrato).lower().strip()
+    if "0 a 5" in estrato_limpio: return 1
+    elif "6 a 10" in estrato_limpio: return 2
+    elif "11 a 30" in estrato_limpio: return 3
+    elif "31 a 50" in estrato_limpio: return 4
+    elif "51 a 100" in estrato_limpio: return 5
+    elif "101 a 250" in estrato_limpio: return 6
+    elif "251 o más" in estrato_limpio or "251 o mas" in estrato_limpio: return 7
+    return 0 
+
+# --- ENDPOINTS ---
 
 @app.get("/health")
 def health():
@@ -81,23 +94,17 @@ def health():
 
 @app.get("/ready")
 def readiness():
-    if not localidades_data:
-        raise HTTPException(status_code=503, detail="Datos no cargados")
-    return {"status": "ready", "localidades": len(localidades_data)}
-    
-def cargar_datos_json():
-    if not os.path.exists(FILE_INGRESOS):
-        raise HTTPException(status_code=500, detail="Archivo de datos no encontrado en el servidor.")
     try:
-        with open(FILE_INGRESOS, "r", encoding="utf-8") as file:
-            return json.load(file)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Error al decodificar el archivo JSON.")  
-    
+        conn = get_db_connection()
+        count = conn.execute("SELECT count(*) FROM localidades").fetchone()[0]
+        conn.close()
+        return {"status": "ready", "localidades": count}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Base de datos no disponible: {str(e)}")
+        
 @app.get("/api/ingresos")
 def obtener_ingresos_por_estado(estado: str = Query(..., description="Nombre del estado a buscar")):
-    datos = cargar_datos_json()
-    
+    datos = cargar_datos_ingresos_json()
     estado_normalizado = estado.strip()
     
     if estado_normalizado in datos:
@@ -112,58 +119,23 @@ def obtener_ingresos_por_estado(estado: str = Query(..., description="Nombre del
         status_code=404, 
         detail=f"El estado '{estado}' no se encuentra en la base de datos de ingresos."
     )
-      
-
-def calcular_distancia(lat1, lon1, lat2, lon2):
-    R = 6371.0
-    rad_lat1, rad_lon1, rad_lat2, rad_lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-    dlat = rad_lat2 - rad_lat1
-    dlon = rad_lon2 - rad_lon1
-    a = math.sin(dlat / 2)**2 + math.cos(rad_lat1) * math.cos(rad_lat2) * math.sin(dlon / 2)**2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
-def obtener_peso_estrato(estrato: str) -> int:
-
-    if not estrato:
-        return 0
-        
-    estrato_limpio = str(estrato).lower().strip()
-    
-    if "0 a 5" in estrato_limpio:
-        return 1
-    elif "6 a 10" in estrato_limpio:
-        return 2
-    elif "11 a 30" in estrato_limpio:
-        return 3
-    elif "31 a 50" in estrato_limpio:
-        return 4
-    elif "51 a 100" in estrato_limpio:
-        return 5
-    elif "101 a 250" in estrato_limpio:
-        return 6
-    elif "251 o más" in estrato_limpio or "251 o mas" in estrato_limpio:
-        return 7
-        
-    return 0 
 
 @app.get("/api/localidad-cercana")
 def obtener_localidad_cercana(
     lat: float = Query(..., description="Latitud enviada desde React"),
     lon: float = Query(..., description="Longitud enviada desde React")
 ):
-    # if not FILE_MAESTRO:
-    #     raise HTTPException(status_code=500, detail="Base de datos de localidades no disponible")
+    conn = get_db_connection()
+    # Traemos solo las columnas necesarias para no saturar memoria
+    rows = conn.execute("SELECT estado, municipio, localidad, coordenadas, demografia, gestion_riesgos FROM localidades").fetchall()
+    conn.close()
 
     localidad_mas_cercana = None
     distancia_minima = float('inf')
 
-    for item in localidades_data:
-
-        if not isinstance(item, dict):
-            continue
-
+    for row in rows:
         try:
-            lat_str, lon_str = item["coordenadas"].split(",")
+            lat_str, lon_str = row["coordenadas"].split(",")
             lat_json = float(lat_str.strip())
             lon_json = float(lon_str.strip())
         except (ValueError, KeyError, TypeError):
@@ -173,58 +145,78 @@ def obtener_localidad_cercana(
 
         if distancia < distancia_minima:
             distancia_minima = distancia
-            localidad_mas_cercana = item
+            localidad_mas_cercana = {
+                "estado": row["estado"],
+                "municipio": row["municipio"],
+                "localidad": row["localidad"],
+                "coordenadas": row["coordenadas"],
+                "demografia": json.loads(row["demografia"]),
+                "gestion_riesgos": json.loads(row["gestion_riesgos"])
+            }
 
     if not localidad_mas_cercana:
         raise HTTPException(status_code=404, detail="No se encontraron localidades válidas")
 
-    respuesta = localidad_mas_cercana.copy()
-    respuesta["distancia_km_aproximada"] = round(distancia_minima, 2)
-
-    return respuesta
+    localidad_mas_cercana["distancia_km_aproximada"] = round(distancia_minima, 2)
+    return localidad_mas_cercana
 
 @app.get("/api/finder")
-def obtener_localidades(nombre: Optional[str] = Query(None, description="Nombre de la localidad a buscar")):
+def obtener_localidades_finder(nombre: Optional[str] = Query(None, description="Nombre de la localidad a buscar")):
     if not nombre or nombre.strip() == "":
         return []  
     
-    resultados = [
-        item for item in localidades_data
-        if nombre.lower() in item.get("localidad", "").lower()
-    ]
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT estado, municipio, localidad, coordenadas, demografia, gestion_riesgos FROM localidades WHERE localidad LIKE ?",
+        (f"%{nombre}%",)
+    ).fetchall()
+    conn.close()
+    
+    resultados = [{
+        "estado": row["estado"],
+        "municipio": row["municipio"],
+        "localidad": row["localidad"],
+        "coordenadas": row["coordenadas"],
+        "demografia": json.loads(row["demografia"]),
+        "gestion_riesgos": json.loads(row["gestion_riesgos"])
+    } for row in rows]
     
     logger.info(f"Búsqueda '/api/finder': '{nombre}' encontró {len(resultados)} resultados")
     return resultados
 
 @app.get("/api/estados")
 def obtener_estados():
-    estados = sorted(list(set(item.get("estado") for item in localidades_data if item.get("estado"))))
-    return estados
+    conn = get_db_connection()
+    rows = conn.execute("SELECT DISTINCT estado FROM localidades WHERE estado IS NOT NULL ORDER BY estado").fetchall()
+    conn.close()
+    return [row["estado"] for row in rows]
 
 @app.get("/api/municipios/{estado}")
 def obtener_municipios(estado: str):
-    municipios = sorted(list(set(
-        item.get("municipio") 
-        for item in localidades_data 
-        if str(item.get("estado")).lower() == estado.lower()
-    )))
-    return municipios
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT DISTINCT municipio FROM localidades WHERE LOWER(estado) = ? AND municipio IS NOT NULL ORDER BY municipio",
+        (estado.lower(),)
+    ).fetchall()
+    conn.close()
+    return [row["municipio"] for row in rows]
 
 @app.get("/api/localidades/{estado}/{municipio}")
 def obtener_localidades(estado: str, municipio: str):
-
-    resultado = [
-        {
-            "localidad": item.get("localidad"),
-            "coordenadas": item.get("coordenadas"),
-            "demografia": item.get("demografia"),
-            "gestion_riesgos": item.get("gestion_riesgos")
-        }
-        for item in localidades_data
-        if str(item.get("estado")).lower() == estado.lower() 
-        and str(item.get("municipio")).lower() == municipio.lower()
-    ]
-    return resultado
+    conn = get_db_connection()
+    rows = conn.execute('''
+        SELECT localidad, coordenadas, demografia, gestion_riesgos 
+        FROM localidades 
+        WHERE LOWER(estado) = ? AND LOWER(municipio) = ?
+    ''', (estado.lower(), municipio.lower())).fetchall()
+    conn.close()
+    
+    return [{
+        "localidad": row["localidad"],
+        "coordenadas": row["coordenadas"],
+        "demografia": json.loads(row["demografia"]),
+        "gestion_riesgos": json.loads(row["gestion_riesgos"])
+    } for row in rows]
 
 @app.get("/api/analizar")
 def analizar_zona(
@@ -268,12 +260,10 @@ def analizar_zona(
                 "latitud": float(item.get("Latitud", 0)),
                 "longitud": float(item.get("Longitud", 0)),
                 "personal": estrato_personal,
-                
                 "razon_social": item.get("Razon_social") or "Sin datos en DENUE",
                 "telefono": item.get("Telefono") or "Sin datos en DENUE",
                 "correo": item.get("Correo_e") or "Sin datos en DENUE",
                 "sitio_web": item.get("Sitio_internet") or "Sin datos en DENUE",
-                
                 "_peso": obtener_peso_estrato(estrato_personal)
             }
 
@@ -292,7 +282,6 @@ def analizar_zona(
         for c in comercios_ordenados: c.pop("_peso", None)
         
         total_com = len(comercios_ordenados)
-        
         poblacion_estimada = max(1200, total_com * 145)
         
         logger.info(f"Análisis completado: {total_com} comercios, {len(competidores_ordenados)} competidores")
