@@ -38,8 +38,8 @@ env/
 .DS_Store
 
 # Datos locales (generados en desarrollo)
-datosDemograficos.json
-datosIngresos.json
+# datosDemograficos.json
+# datosIngresos.json
 *.db
 *.sqlite
 

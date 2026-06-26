@@ -28,11 +28,12 @@ if not TOKEN_INEGI:
     logger.warning("⚠️ TOKEN_INEGI no configurado")
 
 # 2. Obtener nombres de archivos de las variables de entorno
-FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
+# FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
 FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
 
 # 3. Crear rutas ABSOLUTAS combinándolas con el BASE_DIR
-PATH_MAESTRO = BASE_DIR / FILE_MAESTRO
+PATH_PART1 = BASE_DIR / "datosDemograficos_part1.json"
+PATH_PART2 = BASE_DIR / "datosDemograficos_part2.json"
 PATH_INGRESOS = BASE_DIR / FILE_INGRESOS
 
 ENV = os.getenv("ENV", "development")
@@ -52,57 +53,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. Cargar localidades usando la ruta absoluta controlada
-localidades_data = []
-if PATH_MAESTRO.exists():
+if PATH_PART1.exists() and PATH_PART2.exists():
     try:
-        with open(PATH_MAESTRO, "r", encoding="utf-8") as f:
-            localidades_data = json.load(f)
-        logger.info(f"✅ Se cargaron exitosamente {len(localidades_data)} localidades.")
+        with open(PATH_PART1, "r", encoding="utf-8") as f:
+            data1 = json.load(f)
+        with open(PATH_PART2, "r", encoding="utf-8") as f:
+            data2 = json.load(f)
+        
+        # Al ser listas, el signo '+' las une en una sola gran lista
+        localidades_data = data1 + data2
+        logger.info(f"✅ Datos demográficos unificados con éxito. Total: {len(localidades_data)} registros.")
     except Exception as e:
-        logger.error(f"❌ Error al parsear {FILE_MAESTRO}: {e}")
+        logger.error(f"❌ Error al parsear las partes del JSON: {e}")
 else:
-    logger.warning(f"⚠️ No se encontró el archivo maestro en la ruta esperada: {PATH_MAESTRO}")
+    logger.warning("⚠️ No se encontraron las partes del archivo maestro en la ruta esperada.")
 
 # Puedes hacer exactamente lo mismo para tus datos de ingresos abajo si lo requieres:
 ingresos_data = []
 if PATH_INGRESOS.exists():
     with open(PATH_INGRESOS, "r", encoding="utf-8") as f:
         ingresos_data = json.load(f)
-
-# load_dotenv()
-
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-# )
-# logger = logging.getLogger(__name__)
-
-# TOKEN_INEGI = os.getenv("TOKEN_INEGI")
-# if not TOKEN_INEGI:
-#     logger.warning("⚠️ TOKEN_INEGI no configurado")
-
-# FILE_MAESTRO = os.getenv("DATABASE_FILE", "datosDemograficos.json")
-# FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
-# ENV = os.getenv("ENV", "development")
-# CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:5173").split(",")
-
-# app = FastAPI(title="SOCAP Geomarket API")
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=CORS_ORIGIN,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# localidades_data = []
-# if os.path.exists(FILE_MAESTRO):
-#     with open(FILE_MAESTRO, "r", encoding="utf-8") as f:
-#         localidades_data = json.load(f)
-# else:
-#     logger.warning(f"No se encontró '{FILE_MAESTRO}'")
 
 @app.get("/health")
 def health():
@@ -180,8 +150,8 @@ def obtener_localidad_cercana(
     lat: float = Query(..., description="Latitud enviada desde React"),
     lon: float = Query(..., description="Longitud enviada desde React")
 ):
-    if not FILE_MAESTRO:
-        raise HTTPException(status_code=500, detail="Base de datos de localidades no disponible")
+    # if not FILE_MAESTRO:
+    #     raise HTTPException(status_code=500, detail="Base de datos de localidades no disponible")
 
     localidad_mas_cercana = None
     distancia_minima = float('inf')
