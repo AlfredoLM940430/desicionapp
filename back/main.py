@@ -52,6 +52,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+localidades_data = []
 
 if PATH_PART1.exists() and PATH_PART2.exists():
     try:
