@@ -7,25 +7,17 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // IMPORTANTE: Quita maplibre-gl de exclude para que Vite lo procese
   optimizeDeps: {
-    exclude: ['maplibre-gl'],
-    esbuildOptions: {
-      target: 'esnext',
-    }
+    include: ['react-map-gl', 'maplibre-gl']
   },
   esbuild: {
     keepNames: true,
     minifyIdentifiers: false,
-    supported: {
-      bigint: false
-    }
   },
   build: {
     commonjsOptions: {
       include: [/maplibre-gl/, /node_modules/]
-    },
-    rollupOptions: {
-      external: ['maplibre-gl'],
     },
     sourcemap: false
   }
