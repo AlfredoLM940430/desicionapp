@@ -41,7 +41,7 @@ migrar_db.py
 # Datos locales (generados en desarrollo)
 # datosDemograficos.json
 # datosIngresos.jsons
-*.json
+# *.json
 *.db
 *.sqlite
 geomarket.db
