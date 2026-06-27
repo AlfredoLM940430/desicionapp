@@ -1,8 +1,11 @@
 import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
-import maplibregl from 'maplibre-gl';
+// import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchDatosCoordenadas } from '../api/api';
+import * as maplibregl from 'maplibre-gl'; 
+// import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
+// import 'maplibre-gl/dist/maplibre-gl.css'
 
 export const MapView = (
         {ubicacion,             // ubicacionActiva 
