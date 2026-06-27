@@ -11,11 +11,14 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['maplibre-gl']
   },
+  esbuild: {
+    keepNames: true,
+    minifyIdentifiers: false,
+  },
   build: {
     commonjsOptions: {
       include: [/maplibre-gl/, /node_modules/]
     },
-    minify: 'esbuild', // O false si quieres debugear el código real en producción
     sourcemap: false
   }
 })
