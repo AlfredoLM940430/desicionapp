@@ -39,10 +39,11 @@ app = FastAPI(title="SOCAP Geomarket API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGIN,
-    allow_credentials=True,
+    allow_origins=["*"],  # Al usar "*" abrimos el acceso total para pruebas en producción
+    allow_credentials=False, # ⚠️ NOTA: Si usar origins=["*"], allow_credentials DEBE ser False por estándar de seguridad web o tronará
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"] # Fuerza a que todas las cabeceras se expongan al navegador
 )
 
 # Función auxiliar para abrir conexión a SQLite y retornar filas tipo diccionario
