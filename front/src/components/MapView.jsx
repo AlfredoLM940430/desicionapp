@@ -119,9 +119,9 @@ export const MapView = (
         <>
         <div className="w-full h-full relative">
             <Map
+                mapLib={maplibregl}
                 {...viewport}
                 onMove={evt => setViewport(evt.viewState)}
-                mapLib={maplibregl}
                 mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
                 onClick={handleMapClicks}
                 interactiveLayerIds={["capa-comercios", "capa-competidores"]}

@@ -40,10 +40,11 @@ migrar_db.py
 
 # Datos locales (generados en desarrollo)
 # datosDemograficos.json
-# datosIngresos.json
+# datosIngresos.jsons
 *.json
 *.db
 *.sqlite
+geomarket.db
 
 # Logs
 *.log
