@@ -1,11 +1,7 @@
 import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
-// import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchDatosCoordenadas } from '../api/api';
 import * as maplibregl from 'maplibre-gl'; 
-// import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
-// import 'maplibre-gl/dist/maplibre-gl.css'
 
 export const MapView = (
         {ubicacion,             // ubicacionActiva 
@@ -118,49 +114,52 @@ export const MapView = (
         buscarDatosPorCoordenadas(latFija, lngFija);
     };
     
-    return (
-        <>
-        <div className="w-full h-full relative">
-            <Map
-                mapLib={maplibregl}
-                {...viewport}
-                onMove={evt => setViewport(evt.viewState)}
-                mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-                onClick={handleMapClicks}
-                interactiveLayerIds={["capa-comercios", "capa-competidores"]}
-                style={{ width: '100%', height: '100%' }}
-            >
-                <NavigationControl position="top-right" />
+return (
+    <>
+    <div className="w-full h-full relative">
+        <Map
+            mapLib={maplibregl}
+            latitude={viewport.latitude}
+            longitude={viewport.longitude}
+            zoom={viewport.zoom}
+            
+            onMove={evt => setViewport(evt.viewState)}
+            mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+            onClick={handleMapClicks}
+            interactiveLayerIds={["capa-comercios", "capa-competidores"]}
+            style={{ width: '100%', height: '100%' }}
+        >
+            <NavigationControl position="top-right" />
 
-                <Source type="geojson" data={datosGeoJson}>
-                    <Layer {...capaComerciosStyle} />
-                    <Layer {...capaCompetidoresStyle} />
-                </Source>
+            <Source type="geojson" data={datosGeoJson}>
+                <Layer {...capaComerciosStyle} />
+                <Layer {...capaCompetidoresStyle} />
+            </Source>
 
-                {popupInfo && (
-                    <Popup
-                        latitude={popupInfo.latitud}
-                        longitude={popupInfo.longitud}
-                        anchor="top"
-                        onClose={() => setPopupInfo(null)}
-                        closeOnClick={false}
-                    >
-                        <div className="p-2 max-w-xs font-sans">
-                            <h4 className="font-bold text-sm text-[#031636] border-b pb-1 mb-1">
-                                {popupInfo.nombre}
-                            </h4>
-                            <p className="text-xs text-gray-600 font-medium mb-1">{popupInfo.giro}</p>
-                            <p className="text-[11px] text-gray-400 mb-2">{popupInfo.direccion}</p>
-                            <div className="flex justify-between items-center bg-gray-50 p-1.5 rounded-lg border">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">Personal:</span>
-                                <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-semibold">
-                                    {popupInfo.personal}
-                                </span>
-                            </div>
+            {popupInfo && (
+                <Popup
+                    latitude={popupInfo.latitud}
+                    longitude={popupInfo.longitud}
+                    anchor="top"
+                    onClose={() => setPopupInfo(null)}
+                    closeOnClick={false}
+                >
+                    <div className="p-2 max-w-xs font-sans">
+                        <h4 className="font-bold text-sm text-[#031636] border-b pb-1 mb-1">
+                            {popupInfo.nombre}
+                        </h4>
+                        <p className="text-xs text-gray-600 font-medium mb-1">{popupInfo.giro}</p>
+                        <p className="text-[11px] text-gray-400 mb-2">{popupInfo.direccion}</p>
+                        <div className="flex justify-between items-center bg-gray-50 p-1.5 rounded-lg border">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Personal:</span>
+                            <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-semibold">
+                                {popupInfo.personal}
+                            </span>
                         </div>
-                    </Popup>
-                )}
-            </Map>
-        </div>
-        </>
-)}
+                    </div>
+                </Popup>
+            )}
+        </Map>
+    </div>
+    </>
+)
