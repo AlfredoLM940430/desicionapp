@@ -44,19 +44,31 @@ export const MapView = (
         const features = [];
 
         competidores.forEach(c => {
-            features.push({
-                type: "Feature",
-                properties: { ...c, tipo: "competidor" },
-                geometry: { type: "Point", coordinates: [c.longitud, c.latitud] }
-            });
+            // Asegurar que latitud y longitud sean números antes de insertarlos
+            const lat = parseFloat(c.latitud);
+            const lon = parseFloat(c.longitud);
+
+            if (!isNaN(lat) && !isNaN(lon)) {
+                features.push({
+                    type: "Feature",
+                    properties: { ...c, tipo: "competidor" },
+                    geometry: { type: "Point", coordinates: [lon, lat] } // 👈 [Longitud, Latitud] numéricos
+                });
+            }
         });
 
         comercios.forEach(c => {
-            features.push({
-                type: "Feature",
-                properties: { ...c, tipo: "comercio" },
-                geometry: { type: "Point", coordinates: [c.longitud, c.latitud] }
-            });
+            // Asegurar que latitud y longitud sean números antes de insertarlos
+            const lat = parseFloat(c.latitud);
+            const lon = parseFloat(c.longitud);
+
+            if (!isNaN(lat) && !isNaN(lon)) {
+                features.push({
+                    type: "Feature",
+                    properties: { ...c, tipo: "comercio" },
+                    geometry: { type: "Point", coordinates: [lon, lat] } // 👈 [Longitud, Latitud] numéricos
+                });
+            }
         });
 
         return { type: "FeatureCollection", features };
