@@ -122,7 +122,7 @@ export const MapView = (
         const latFija = parseFloat(lat.toFixed(6));
         const lngFija = parseFloat(lng.toFixed(6));
         
-        consulta(latFija, lngFija); 
+        //consulta(latFija, lngFija); 
         buscarDatosPorCoordenadas(latFija, lngFija);
     };
     

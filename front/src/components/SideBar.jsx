@@ -83,9 +83,14 @@ export const SideBar = (
         setLocalidad(valorSeleccionado);
 
         const objetoLocalidad = listaLocalidades.find(i => i.localidad === valorSeleccionado);
+        const objEstadoMunicipio = {
+            ...objetoLocalidad,
+            estado: estado,
+            municipio: municipio
+        }
         
         if (objetoLocalidad) {;
-            onLocationChange(objetoLocalidad); 
+            onLocationChange(objEstadoMunicipio); 
         }
     };  
     
