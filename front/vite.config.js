@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  optimizeDeps: {
-    include: ['maplibre-gl'],
-  },
+  // optimizeDeps: {
+  //   include: ['maplibre-gl'],
+  // },
 })
