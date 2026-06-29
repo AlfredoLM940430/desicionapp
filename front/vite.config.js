@@ -6,13 +6,4 @@ export default defineConfig({
   optimizeDeps: {
     include: ['maplibre-gl'],
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          maplibre: ['maplibre-gl'],
-        }
-      }
-    }
-  }
 })
