@@ -1,9 +1,7 @@
-// AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 const AuthContext = createContext(null);
-const API_URL = "http://localhost:8000"; // ajusta a tu backend
-// const API_URL = "http://localhost:8000/api"; // ajusta a tu backend
 
 export function AuthProvider({ children }) {
     const [token, setToken] = useState(() => localStorage.getItem("token"));
@@ -15,7 +13,7 @@ export function AuthProvider({ children }) {
             setCargandoAuth(false);
             return;
         }
-        fetch(`${API_URL}/api/auth/me`, {
+        fetch(`${BASE_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => {
@@ -31,7 +29,7 @@ export function AuthProvider({ children }) {
     }, [token]);
 
     const login = async (email, password) => {
-        const res = await fetch(`${API_URL}/api/auth/login`, {
+        const res = await fetch(`${BASE_URL}/api/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
@@ -47,7 +45,7 @@ export function AuthProvider({ children }) {
     };
 
     const registro = async (email, password, nombre) => {
-        const res = await fetch(`${API_URL}/api/auth/registro`, {
+        const res = await fetch(`${BASE_URL}/api/auth/registro`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, nombre })
