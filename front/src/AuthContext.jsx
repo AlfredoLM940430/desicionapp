@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
             setCargandoAuth(false);
             return;
         }
-        fetch(`${BASE_URL}/api/auth/me`, {
+        fetch(`${BASE_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => {
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
     }, [token]);
 
     const login = async (email, password) => {
-        const res = await fetch(`${BASE_URL}/api/auth/login`, {
+        const res = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
     };
 
     const registro = async (email, password, nombre) => {
-        const res = await fetch(`${BASE_URL}/api/auth/registro`, {
+        const res = await fetch(`${BASE_URL}/auth/registro`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, nombre })

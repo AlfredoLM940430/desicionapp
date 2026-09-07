@@ -41,17 +41,17 @@ export default function LoginPage() {
             <div className="w-full max-w-sm">
 
                 <div className="mb-8 text-center">
-                    <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white text-sm font-semibold mb-4">
-                        SG
+                    <div className="inline-flex h-11 w-15 items-center justify-center rounded-xl bg-green-900 text-white text-sm font-semibold mb-4">
+                        Pío XII
                     </div>
                     <h1 className="text-xl font-semibold text-slate-900">
                         {esRegistro ? "Crear una cuenta" : "Inicia sesión"}
                     </h1>
-                    <p className="mt-1 text-sm text-slate-500">
+                    {/* <p className="mt-1 text-sm text-slate-500">
                         {esRegistro
                             ? "Regístrate para acceder al panel de Geomarket"
                             : "Accede al panel de Geomarket"}
-                    </p>
+                    </p> */}
                 </div>
 
                 <form
@@ -85,7 +85,7 @@ export default function LoginPage() {
                             autoComplete="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="tu@empresa.com"
+                            placeholder="correo@empresa.com"
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
                         />
                     </div>
@@ -116,7 +116,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={cargando}
-                        className="w-full rounded-lg bg-slate-900 text-white text-sm font-medium py-2.5 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full rounded-lg bg-green-900 text-white text-sm font-medium py-2.5 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {cargando
                             ? "Cargando..."
