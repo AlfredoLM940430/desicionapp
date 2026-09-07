@@ -97,12 +97,7 @@ export const SideBar = (
   
     return (
         <>
-        <aside className="w-[380px] border-r border-slate-200 bg-slate-50/70 backdrop-blur-md p-6 flex flex-col gap-6 h-full overflow-y-auto select-none">            {/* Encabezado */}
-            {/* <div className="border-b border-slate-100 pb-4">
-                <p className="text-xs font-medium text-slate-400 mt-0.5 uppercase tracking-wider">
-                    Configuración Geográfica
-                </p>
-            </div> */}
+        <aside className="w-[380px] border-r border-slate-200 bg-slate-50/70 backdrop-blur-md p-6 flex flex-col gap-6 h-full overflow-y-auto select-none">
 
             {/* Formulario de Selects */}
             <div className="flex flex-col gap-5">

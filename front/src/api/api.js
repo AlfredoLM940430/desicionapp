@@ -1,11 +1,25 @@
 const BASE_URL = import.meta.env.VITE_API_URL;
 
-export const fetchDenueData = async (lat, lon, radioKm) => {
+// api.js
+export async function fetchAutenticado(url, token, options = {}) {
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            Authorization: `Bearer ${token}`
+        }
+    });
+    if (res.status === 401) {
+        localStorage.removeItem("token");
+        window.location.reload(); // fuerza vuelta al login
+    }
+    return res.json();
+}
+
+export const fetchDenueData = async (lat, lon, radioKm, token) => {
     try {
-        const response = await fetch(`${BASE_URL}/analizar?lat=${lat}&lon=${lon}&radio=${radioKm}`);
-        if (!response.ok) throw new Error("Error en la respuesta del servidor");
-        
-        const datos = await response.json();
+        const url = `${BASE_URL}/analizar?lat=${lat}&lon=${lon}&radio=${radioKm}`;
+        const datos = await fetchAutenticado(url, token);
         return datos;
     } catch (error) {
         console.error("Error en fetchDenueData:", error);

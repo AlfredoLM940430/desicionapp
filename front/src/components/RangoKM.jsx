@@ -5,6 +5,7 @@ export const SelectorRango = ({radioKm, setRadioKm}) => {
 
     const handleManejarCambio = (e) => {
         setRadioKm(Number(e.target.value));
+        console.log(e.target.value)
     };
 
     return (

@@ -8,12 +8,15 @@ from http.client import BadStatusLine
 from requests.exceptions import ConnectionError, Timeout
 import requests
 import sqlite3
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+from fastapi import FastAPI, Query, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from auth import hash_password, verificar_password, crear_access_token, obtener_usuario_actual
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,9 +25,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 1. Directorio base absoluto
-BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "geomarket.db"
 FILE_INGRESOS = os.getenv("INGRESOS_FILE", "datosIngresos.json")
+
 
 TOKEN_INEGI = os.getenv("TOKEN_INEGI")
 if not TOKEN_INEGI:
@@ -46,13 +49,51 @@ app.add_middleware(
     expose_headers=["*"] # Fuerza a que todas las cabeceras se expongan al navegador
 )
 
-# Función auxiliar para abrir conexión a SQLite y retornar filas tipo diccionario
+
+# --- MODELOS Pydantic (auth) ---
+
+class UsuarioRegistro(BaseModel):
+    email: EmailStr
+    password: str
+    nombre: Optional[str] = None
+
+class UsuarioLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+# --- Función auxiliar para abrir conexión a SQLite y retornar filas tipo diccionario ---
+
 def get_db_connection():
     if not DB_PATH.exists():
         raise HTTPException(status_code=500, detail="Base de datos geomarket.db no encontrada en el servidor.")
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+# --- Creación de tabla de usuarios (idempotente) ---
+
+def crear_tabla_usuarios():
+    conn = get_db_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            nombre TEXT,
+            creado_en TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+@app.on_event("startup")
+def startup_event():
+    crear_tabla_usuarios()
+    logger.info("Tabla 'usuarios' verificada/creada correctamente.")
+
 
 # Función auxiliar para cargar los ingresos (JSON de Diccionario)
 def cargar_datos_ingresos_json():
@@ -102,7 +143,50 @@ def readiness():
         return {"status": "ready", "localidades": count}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Base de datos no disponible: {str(e)}")
-        
+
+
+# --- ENDPOINTS DE AUTENTICACIÓN ---
+
+@app.post("/api/auth/registro")
+def registrar_usuario(usuario: UsuarioRegistro):
+    conn = get_db_connection()
+    existente = conn.execute("SELECT id FROM usuarios WHERE email = ?", (usuario.email,)).fetchone()
+    if existente:
+        conn.close()
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+
+    password_hash = hash_password(usuario.password)
+    conn.execute(
+        "INSERT INTO usuarios (email, password_hash, nombre) VALUES (?, ?, ?)",
+        (usuario.email, password_hash, usuario.nombre)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Usuario registrado correctamente"}
+
+@app.post("/api/auth/login")
+def login(usuario: UsuarioLogin):
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM usuarios WHERE email = ?", (usuario.email,)).fetchone()
+    conn.close()
+
+    if not row or not verificar_password(usuario.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+
+    token = crear_access_token({"sub": row["email"]})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "usuario": {"email": row["email"], "nombre": row["nombre"]}
+    }
+
+@app.get("/api/auth/me")
+def leer_usuario_actual(email: str = Depends(obtener_usuario_actual)):
+    return {"email": email}
+
+
+# --- ENDPOINTS DE NEGOCIO (existentes) ---
+
 @app.get("/api/ingresos")
 def obtener_ingresos_por_estado(estado: str = Query(..., description="Nombre del estado a buscar")):
     datos = cargar_datos_ingresos_json()
@@ -206,7 +290,7 @@ def obtener_municipios(estado: str):
 def obtener_localidades(estado: str, municipio: str):
     conn = get_db_connection()
     rows = conn.execute('''
-        SELECT localidad, coordenadas, demografia, gestion_riesgos 
+        SELECT estado, municipio, localidad, coordenadas, demografia, gestion_riesgos 
         FROM localidades 
         WHERE LOWER(estado) = ? AND LOWER(municipio) = ?
     ''', (estado.lower(), municipio.lower())).fetchall()
@@ -224,7 +308,8 @@ def analizar_zona(
     lat: float = Query(..., description="Latitud de búsqueda"),
     lon: float = Query(..., description="Longitud de búsqueda"),
     radio: int = Query(2000, description="Radio en metros"),
-    palabra: str = Query("todos", description="Filtro para el DENUE")
+    palabra: str = Query("todos", description="Filtro para el DENUE"),
+    usuario: str = Depends(obtener_usuario_actual)  # 👈 endpoint protegido: requiere JWT válido
 ):
     if not TOKEN_INEGI:
         logger.error("TOKEN_INEGI no está configurado")

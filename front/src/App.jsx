@@ -5,9 +5,13 @@ import { MapView } from './components/MapView';
 import { DetalleLista } from './components/DetalleLista';
 import VistaDemografica from './components/VistaDemografica';
 import { fetchDenueData, fetchIngresosEstado } from './api/api';
+import { useAuth } from './AuthContext';
+import LoginPage from './components/LoginPage';
 
 export default function App() {
 
+    const { usuario, cargandoAuth, token } = useAuth();
+ 
     const [ubicacionActiva, setUbicacionActiva] = useState(null);
     const [dataDenue, setDataDenue] = useState(null);
     const [cargando, setCargando] = useState(false)
@@ -19,7 +23,7 @@ export default function App() {
     const callDenueData = async (lat, lon) => {
         setCargando(true);
         try {
-            const datos = await fetchDenueData(lat, lon, radioKm);
+            const datos = await fetchDenueData(lat, lon, radioKm, token);
             
             if (datos.status === "success") {
                 setDataDenue(datos);
@@ -49,8 +53,7 @@ export default function App() {
             } catch (error) {
                 alert(error.message); 
             }
-        }
-        
+        } 
     };
 
     useEffect(() => {
@@ -107,8 +110,8 @@ export default function App() {
     };
     }, [ubicacionActiva, dataDenue, ingresosEdad, setVista]);
 
-    console.log(radioKm);
-    
+    if (cargandoAuth) return <div>Cargando...</div>;
+    if (!usuario) return <LoginPage />;
     
     return (
         <div className="h-screen w-screen flex flex-col bg-slate-50 text-slate-900 overflow-hidden antialiased">
